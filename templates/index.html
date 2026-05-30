@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mira – Mental Health Companion</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="avatar">🌿</div>
+      <div class="header-text">
+        <h1>Mira</h1>
+        <span class="status">● Always here for you</span>
+      </div>
+      <button id="resetBtn" title="New conversation">↺</button>
+    </header>
+
+    <div class="chat-window" id="chatWindow">
+      <div class="message bot">
+        <div class="bubble">
+          Hi, I'm Mira 🌿 I'm here to listen without judgment. 
+          How are you feeling today?
+        </div>
+      </div>
+    </div>
+
+    <div class="mood-bar">
+      <span>Quick mood check:</span>
+      <button class="mood" onclick="sendMood('😊 Happy')">😊</button>
+      <button class="mood" onclick="sendMood('😔 Sad')">😔</button>
+      <button class="mood" onclick="sendMood('😰 Anxious')">😰</button>
+      <button class="mood" onclick="sendMood('😤 Frustrated')">😤</button>
+      <button class="mood" onclick="sendMood('😴 Tired')">😴</button>
+    </div>
+
+    <div class="input-area">
+      <textarea id="userInput" placeholder="Share what's on your mind…" rows="1"></textarea>
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <p class="disclaimer">Mira is an AI companion, not a licensed therapist. 
+      In a crisis, call <strong>iCall: 9152987821</strong></p>
+  </div>
+
+  <script>
+    const chatWindow = document.getElementById("chatWindow");
+    const userInput = document.getElementById("userInput");
+
+    userInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Auto-resize textarea
+    userInput.addEventListener("input", () => {
+      userInput.style.height = "auto";
+      userInput.style.height = userInput.scrollHeight + "px";
+    });
+
+    function sendMood(mood) {
+      userInput.value = `I'm feeling ${mood} right now.`;
+      sendMessage();
+    }
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      appendMessage(text, "user");
+      userInput.value = "";
+      userInput.style.height = "auto";
+
+      const typing = appendTyping();
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        typing.remove();
+
+        if (data.crisis) {
+          appendMessage(data.reply, "bot crisis");
+        } else {
+          appendMessage(data.reply, "bot");
+        }
+      } catch (err) {
+        typing.remove();
+        appendMessage("Sorry, something went wrong. Please try again.", "bot");
+      }
+    }
+
+    function appendMessage(text, type) {
+      const div = document.createElement("div");
+      div.className = `message ${type}`;
+      div.innerHTML = `<div class="bubble">${text.replace(/\n/g, "<br/>")}</div>`;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+      return div;
+    }
+
+    function appendTyping() {
+      const div = document.createElement("div");
+      div.className = "message bot";
+      div.innerHTML = `<div class="bubble typing"><span></span><span></span><span></span></div>`;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+      return div;
+    }
+
+    document.getElementById("resetBtn").addEventListener("click", async () => {
+      await fetch("/reset", { method: "POST" });
+      chatWindow.innerHTML = `
+        <div class="message bot">
+          <div class="bubble">Starting fresh 🌿 How are you feeling right now?</div>
+        </div>`;
+    });
+  </script>
+</body>
+</html>
